@@ -1,7 +1,7 @@
 name: Daily Update
 on:
   schedule:
-    - cron: '0 15 * * *' # 한국 시간 매일 자정 실행
+    - cron: '0 21 * * *' # 한국 시간 매일 6am 실행
   workflow_dispatch: # 내가 버튼을 눌러서 수동 실행할 수 있는 옵션
 
 jobs:
