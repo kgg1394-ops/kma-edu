@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>온라인 연수평점 모음</title>
+</head>
+<body>
+  <h1>조건: 온라인</h1>
+  <table border="1" id="courseTable">
+    <tr><th>교육명</th><th>기관</th><th>일자</th><th>수강료</th><th>평점</th></tr>
+  </table>
+
+  <script>
+    // scraper.js가 만든 data.json 파일을 읽어서 화면에 표로 그려줍니다.
+    fetch('data.json')
+      .then(response => response.json())
+      .then(data => {
+        const table = document.getElementById('courseTable');
+        data.forEach(item => {
+          table.innerHTML += `<tr><td>${item.title}</td><td>${item.institution}</td><td>${item.date}</td><td>${item.price}원</td><td>${item.credits}점</td></tr>`;
+        });
+      });
+  </script>
+</body>
+</html>
