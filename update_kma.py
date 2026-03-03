@@ -5,7 +5,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from webdriver_manager.chrome import ChromeDriverManager
 
-def fetch_essential_final():
+def fetch_med_essential_final():
     options = Options()
     options.add_argument("--headless")
     options.add_argument("--disable-gpu")
@@ -18,11 +18,12 @@ def fetch_essential_final():
     page_num = 1
     last_page_first_title = ""
 
+    # 2026년 말까지 수집
     start_dt = datetime.datetime.now().strftime('%Y-%m-%d')
     end_dt = "2026-12-31"
 
     try:
-        print(f"🚀 [MED Essential] {start_dt} ~ {end_dt} 일정 수집 중...")
+        print(f"🚀 [MED Essential] 필수평점 정밀 추출 모드 가동...")
         
         while True:
             target_url = f"https://edu.kma.org/edu/schedule?pageNo={page_num}&start_dt={start_dt}&end_dt={end_dt}&sch_type=1&sch_txt=&sch_es=Y&s_smallcode_Nm=&s_place=&siidx=&s_escidx=&s_scode="
@@ -44,18 +45,28 @@ def fetch_essential_final():
                     detail_text = details[i].text.strip()
                     onclick_val = titles[i].get_attribute("onclick")
                     
-                    # [수정 포인트] eduidx 파라미터 반영
+                    # 1. eduidx 링크 생성
                     idx_match = re.search(r'viewer\((\d+)\)', onclick_val)
                     item_id = idx_match.group(1) if idx_match else ""
-                    # 선생님께서 알려주신 정교한 URL 양식으로 교체
-                    reg_url = f"https://edu.kma.org/edu/schedule_view?eduidx={item_id}" if item_id else "#"
+                    reg_url = f"https://edu.kma.org/edu/schedule_view?eduidx={item_id}"
 
+                    # 2. 필수평점 정밀 추출 (선생님이 주신 샘플 기준)
+                    # 예: "평점 6 (필수 1평점 포함)" -> 1 추출
                     full_text = title_raw + " " + detail_text
-                    essential_match = re.search(r'필수\s*[:：]?\s*(\d+)', full_text)
-                    credits = essential_match.group(1) if essential_match else "0"
+                    essential_match = re.search(r'필수\s*(\d+)\s*평점', full_text)
                     
+                    if essential_match:
+                        credits = essential_match.group(1)
+                    else:
+                        # 예비: "평점 2 (필수 2평점 포함)" 에서 숫자만 가져오기
+                        match = re.search(r'\(필수\s*(\d+)', full_text)
+                        credits = match.group(1) if match else "0"
+                    
+                    # 제목 정제 (뒤의 [필수] 태그 유지)
                     clean_title = re.sub(r'\[?평점.*?\]?', '', title_raw).strip()
-                    
+                    if not clean_title.endswith('[필수]'):
+                        clean_title += " [필수]"
+
                     lines = detail_text.split('\n')
                     date, inst, loc = "", "", ""
                     for line in lines:
@@ -69,12 +80,12 @@ def fetch_essential_final():
                         "date": date,
                         "institution": inst,
                         "location": loc,
-                        "reg_url": reg_url, # 수정된 링크 저장
+                        "reg_url": reg_url,
                         "is_online": "온라인" in title_raw or "온라인" in loc
                     })
                 except: continue
 
-            print(f"   - {page_num}페이지 완료 (누적: {len(all_results)}건)", end="\r")
+            print(f"   - {page_num}페이지 수집 완료 (누적: {len(all_results)}건)", end="\r")
             page_num += 1
 
     except Exception as e:
@@ -85,11 +96,11 @@ def fetch_essential_final():
         
         if all_results:
             subprocess.run("git add .", shell=True)
-            msg = f"URL format fix: {len(all_results)} items"
+            msg = f"Essential Credit Logic Fix: {len(all_results)} items"
             subprocess.run(f'git commit -m "{msg}"', shell=True, capture_output=True)
             subprocess.run("git push origin main", shell=True)
-            print(f"\n✨ {len(all_results)}건의 링크 수정 및 업데이트 완료!")
+            print(f"\n✨ {len(all_results)}건의 평점과 링크가 수정되었습니다!")
         driver.quit()
 
 if __name__ == "__main__":
-    fetch_essential_final()
+    fetch_med_essential_final()
