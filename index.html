@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MED Essential Edu-Tracker</title>
+    <title>Medical Essential Education Tracker</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.8/dist/web/static/pretendard.css" />
     <style>
         :root { 
-            --gi-blue: #0277bd; 
-            --gi-accent: #ff7043; 
+            --med-blue: #0277bd; 
+            --med-accent: #ff7043; 
             --bg-light: #f4f7f9; 
             --white: #ffffff;
         }
@@ -35,12 +35,12 @@
             border-radius: 20px; 
             box-shadow: 0 10px 25px rgba(0,0,0,0.05); 
             margin-bottom: 25px; 
-            border-top: 6px solid var(--gi-blue);
+            border-top: 6px solid var(--med-blue);
         }
         
         h1 { 
             margin: 0; 
-            color: var(--gi-blue); 
+            color: var(--med-blue); 
             font-size: 1.8rem; 
             display: flex; 
             align-items: center; 
@@ -70,7 +70,7 @@
             transition: 0.3s;
         }
 
-        .card i { font-size: 1.8rem; color: var(--gi-blue); margin-bottom: 10px; }
+        .card i { font-size: 1.8rem; color: var(--med-blue); margin-bottom: 10px; }
         .card-val { font-size: 1.4rem; font-weight: bold; display: block; color: #222; }
         .card-label { font-size: 0.85rem; color: #888; }
 
@@ -101,7 +101,7 @@
         }
 
         .search-box i { position: absolute; left: 15px; top: 15px; color: #aaa; }
-        .search-box input:focus { border-color: var(--gi-blue); box-shadow: 0 0 0 3px rgba(2, 119, 189, 0.1); }
+        .search-box input:focus { border-color: var(--med-blue); box-shadow: 0 0 0 3px rgba(2, 119, 189, 0.1); }
 
         .btn-excel { 
             background: #2e7d32; 
@@ -132,8 +132,8 @@
             box-shadow: 0 4px 10px rgba(0,0,0,0.02);
         }
 
-        .edu-item:hover { transform: translateY(-3px); border-color: var(--gi-blue); box-shadow: 0 8px 20px rgba(0,0,0,0.08); }
-        .gi-highlight { border-left: 6px solid var(--gi-accent); background: #fff9f7; }
+        .edu-item:hover { transform: translateY(-3px); border-color: var(--med-blue); box-shadow: 0 8px 20px rgba(0,0,0,0.08); }
+        .highlight-item { border-left: 6px solid var(--med-accent); background: #fff9f7; }
 
         .info-main h3 { margin: 0 0 10px 0; font-size: 1.15rem; color: #1a1a1a; }
         .info-meta { font-size: 0.9rem; color: #666; display: flex; flex-wrap: wrap; gap: 15px; }
@@ -147,7 +147,7 @@
         .btn-reg { 
             display: inline-block; 
             padding: 10px 20px; 
-            background: var(--gi-blue); 
+            background: var(--med-blue); 
             color: white; 
             text-decoration: none; 
             border-radius: 8px; 
@@ -178,7 +178,7 @@
         }
 
         .page-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-        .page-btn:hover:not(:disabled) { background: var(--gi-blue); color: white; border-color: var(--gi-blue); }
+        .page-btn:hover:not(:disabled) { background: var(--med-blue); color: white; border-color: var(--med-blue); }
         #page-info { font-weight: bold; color: #444; }
 
         @media (max-width: 768px) {
@@ -192,8 +192,8 @@
 
 <div class="container">
     <header class="header">
-        <h1><i class="fa-solid fa-user-doctor"></i> 2026 필수평점 관리 비서</h1>
-        <p class="sub-text">삼성서울병원 소화기내과 펠로우 생활의 효율적인 평점 이수를 지원합니다.</p>
+        <h1><i class="fa-solid fa-user-doctor"></i> 2026 연수교육 필수평점 관리</h1>
+        <p class="sub-text">올해 이수가 필요한 모든 의료인 필수 평점 교육 일정을 안내합니다.</p>
     </header>
 
     <div class="summary-grid">
@@ -203,9 +203,9 @@
             <span class="card-val" id="stat-total">0</span>
         </div>
         <div class="card">
-            <i class="fa-solid fa-stethscope"></i>
-            <span class="card-label">GI 관련 교육</span>
-            <span class="card-val" id="stat-gi" style="color: var(--gi-accent);">0</span>
+            <i class="fa-solid fa-calendar-day"></i>
+            <span class="card-label">다가오는 일정 (14일 내)</span>
+            <span class="card-val" id="stat-urgent" style="color: var(--med-accent);">0</span>
         </div>
         <div class="card">
             <i class="fa-solid fa-globe"></i>
@@ -224,8 +224,7 @@
         </button>
     </div>
 
-    <div id="edu-list">
-        </div>
+    <div id="edu-list"></div>
 
     <div class="pagination">
         <button id="prevBtn" class="page-btn" onclick="changePage(-1)">이전</button>
@@ -238,10 +237,9 @@
     let allData = [];
     let filteredData = [];
     let currentPage = 1;
-    const itemsPerPage = 15; // 한 페이지당 15개
-    const giKeywords = ['내과', '췌장', '담도', '간', '내시경', 'ERCP', '소화기', '초음파'];
+    const itemsPerPage = 15;
+    const highlightKeywords = ['내과', '췌장', '담도', '간', '내시경', 'ERCP', '소화기', '초음파'];
 
-    // 데이터 불러오기
     fetch('data.json')
         .then(res => res.json())
         .then(data => {
@@ -252,17 +250,23 @@
         })
         .catch(err => console.error("데이터 로드 실패:", err));
 
-    // 요약 통계 업데이트
     function updateStats() {
-        const giCount = allData.filter(item => giKeywords.some(key => item.title.includes(key))).length;
+        const today = new Date();
+        today.setHours(0,0,0,0);
+        
+        const urgentCount = allData.filter(item => {
+            const eduDate = new Date(item.date.split('~')[0].trim());
+            const diffDays = Math.ceil((eduDate - today) / (1000 * 60 * 60 * 24));
+            return diffDays >= 0 && diffDays <= 14;
+        }).length;
+
         const onlineCount = allData.filter(item => item.is_online).length;
         
         document.getElementById('stat-total').innerText = allData.length;
-        document.getElementById('stat-gi').innerText = giCount;
+        document.getElementById('stat-urgent').innerText = urgentCount;
         document.getElementById('stat-online').innerText = onlineCount;
     }
 
-    // 화면 렌더링
     function updateDisplay() {
         const list = document.getElementById('edu-list');
         list.innerHTML = '';
@@ -276,21 +280,18 @@
         }
 
         pageData.forEach(item => {
-            const isGI = giKeywords.some(key => item.title.includes(key));
-            
-            // D-Day 계산
+            const shouldHighlight = highlightKeywords.some(key => item.title.includes(key));
             const eduDate = new Date(item.date.split('~')[0].trim());
             const today = new Date();
             today.setHours(0,0,0,0);
-            const diffTime = eduDate - today;
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            const diffDays = Math.ceil((eduDate - today) / (1000 * 60 * 60 * 24));
             const dDayText = diffDays === 0 ? "Today" : (diffDays > 0 ? `D-${diffDays}` : `종료`);
             const isUrgent = diffDays >= 0 && diffDays <= 14;
 
             const itemHtml = `
-                <div class="edu-item ${isGI ? 'gi-highlight' : ''}">
+                <div class="edu-item ${shouldHighlight ? 'highlight-item' : ''}">
                     <div class="info-main">
-                        <h3>${isGI ? '🔥 ' : ''}${item.title}</h3>
+                        <h3>${shouldHighlight ? '⭐ ' : ''}${item.title}</h3>
                         <div class="info-meta">
                             <span><i class="fa-regular fa-building"></i> ${item.institution}</span>
                             <span><i class="fa-solid fa-location-dot"></i> ${item.location}</span>
@@ -310,21 +311,18 @@
             list.innerHTML += itemHtml;
         });
 
-        // 페이징 UI 업데이트
         const totalPages = Math.ceil(filteredData.length / itemsPerPage) || 1;
         document.getElementById('page-info').innerText = `${currentPage} / ${totalPages}`;
         document.getElementById('prevBtn').disabled = currentPage === 1;
         document.getElementById('nextBtn').disabled = currentPage === totalPages;
     }
 
-    // 페이지 변경
     function changePage(direction) {
         currentPage += direction;
         updateDisplay();
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
-    // 검색 기능
     document.getElementById('searchInput').addEventListener('input', (e) => {
         const term = e.target.value.toLowerCase();
         filteredData = allData.filter(item => 
@@ -335,7 +333,6 @@
         updateDisplay();
     });
 
-    // 엑셀 다운로드 (CSV)
     function downloadCSV() {
         let csv = "\uFEFF교육명,이수평점,교육일자,주관기관,장소,신청링크\n";
         allData.forEach(item => {
@@ -344,7 +341,7 @@
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement("a");
         link.href = URL.createObjectURL(blob);
-        link.download = `KMA_필수평점_리스트_${new Date().toISOString().slice(0,10)}.csv`;
+        link.download = `필수평점_리스트_${new Date().toISOString().slice(0,10)}.csv`;
         link.click();
     }
 </script>

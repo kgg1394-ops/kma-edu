@@ -18,31 +18,42 @@ def fetch_med_essential_final():
     page_num = 1
     last_page_first_title = ""
 
-    # 2026년 말까지 수집
+    # 수집 기간 설정
     start_dt = datetime.datetime.now().strftime('%Y-%m-%d')
     end_dt = "2026-12-31"
 
     try:
-        print(f"🚀 [MED Essential] 필수평점 정밀 추출 모드 가동...")
+        print(f"🚀 [데이터 분석] 필수평점 항목을 정밀 스캔합니다...")
         
         while True:
             target_url = f"https://edu.kma.org/edu/schedule?pageNo={page_num}&start_dt={start_dt}&end_dt={end_dt}&sch_type=1&sch_txt=&sch_es=Y&s_smallcode_Nm=&s_place=&siidx=&s_escidx=&s_scode="
             driver.get(target_url)
             time.sleep(3)
 
-            titles = driver.find_elements(By.CSS_SELECTOR, "p.mb5[onclick^='$.viewer']")
-            details = driver.find_elements(By.CSS_SELECTOR, "ul.cyberKindList")
-
-            if not titles: break
+            # 각 교육 항목의 컨테이너를 먼저 찾습니다.
+            items = driver.find_elements(By.CSS_SELECTOR, "div#edu > div.boardList > ul > li")
             
+            if not items:
+                # 위 선택자로 안 잡힐 경우 기존 방식으로 시도
+                titles = driver.find_elements(By.CSS_SELECTOR, "p.mb5[onclick^='$.viewer']")
+                if not titles: break
+            else:
+                # 컨테이너 방식 (더 정확함)
+                titles = [item.find_element(By.CSS_SELECTOR, "p.mb5") for item in items]
+
+            # 중복 체크
             current_first_title = titles[0].text.strip()
             if current_first_title == last_page_first_title: break
             last_page_first_title = current_first_title
 
             for i in range(len(titles)):
                 try:
+                    # 해당 항목의 전체 텍스트를 가져와서 평점을 찾습니다.
+                    # li 태그 내부의 모든 텍스트를 합쳐서 검색 범위에 넣습니다.
+                    parent_item = titles[i].find_element(By.XPATH, "./..") 
+                    full_text = parent_item.text.replace("\n", " ")
+                    
                     title_raw = titles[i].text.strip()
-                    detail_text = details[i].text.strip()
                     onclick_val = titles[i].get_attribute("onclick")
                     
                     # 1. eduidx 링크 생성
@@ -50,23 +61,22 @@ def fetch_med_essential_final():
                     item_id = idx_match.group(1) if idx_match else ""
                     reg_url = f"https://edu.kma.org/edu/schedule_view?eduidx={item_id}"
 
-                    # 2. 필수평점 정밀 추출 (선생님이 주신 샘플 기준)
-                    # 예: "평점 6 (필수 1평점 포함)" -> 1 추출
-                    full_text = title_raw + " " + detail_text
-                    essential_match = re.search(r'필수\s*(\d+)\s*평점', full_text)
-                    
+                    # 2. 필수평점 정밀 추출
+                    # "평점 6 (필수 1평점 포함)" -> '1' 추출
+                    # "평점 6 (필수 2평점 포함)" -> '2' 추출
+                    score = "0"
+                    # 패턴: '필수' 뒤에 오는 숫자를 찾음
+                    essential_match = re.search(r'필수\s*(\d+)', full_text)
                     if essential_match:
-                        credits = essential_match.group(1)
-                    else:
-                        # 예비: "평점 2 (필수 2평점 포함)" 에서 숫자만 가져오기
-                        match = re.search(r'\(필수\s*(\d+)', full_text)
-                        credits = match.group(1) if match else "0"
+                        score = essential_match.group(1)
                     
-                    # 제목 정제 (뒤의 [필수] 태그 유지)
+                    # 제목에서 [필수] 태그 정제
                     clean_title = re.sub(r'\[?평점.*?\]?', '', title_raw).strip()
                     if not clean_title.endswith('[필수]'):
                         clean_title += " [필수]"
 
+                    # 상세 정보 추출
+                    detail_text = parent_item.find_element(By.CSS_SELECTOR, "ul.cyberKindList").text
                     lines = detail_text.split('\n')
                     date, inst, loc = "", "", ""
                     for line in lines:
@@ -76,30 +86,30 @@ def fetch_med_essential_final():
 
                     all_results.append({
                         "title": clean_title,
-                        "credits": credits,
+                        "credits": score,
                         "date": date,
                         "institution": inst,
                         "location": loc,
                         "reg_url": reg_url,
                         "is_online": "온라인" in title_raw or "온라인" in loc
                     })
-                except: continue
+                except Exception as e:
+                    continue
 
-            print(f"   - {page_num}페이지 수집 완료 (누적: {len(all_results)}건)", end="\r")
+            print(f"   - {page_num}페이지 분석 완료 (누적: {len(all_results)}건)", end="\r")
             page_num += 1
 
     except Exception as e:
-        print(f"\n❌ 에러: {e}")
+        print(f"\n❌ 오류 발생: {e}")
     finally:
         with open('data.json', 'w', encoding='utf-8') as f:
             json.dump(all_results, f, ensure_ascii=False, indent=2)
         
         if all_results:
             subprocess.run("git add .", shell=True)
-            msg = f"Essential Credit Logic Fix: {len(all_results)} items"
-            subprocess.run(f'git commit -m "{msg}"', shell=True, capture_output=True)
+            subprocess.run(f'git commit -m "Fixed credits logic: {len(all_results)} items"', shell=True, capture_output=True)
             subprocess.run("git push origin main", shell=True)
-            print(f"\n✨ {len(all_results)}건의 평점과 링크가 수정되었습니다!")
+            print(f"\n✨ 업데이트 완료! 이제 평점이 정상적으로 표시됩니다.")
         driver.quit()
 
 if __name__ == "__main__":
