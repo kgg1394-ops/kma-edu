@@ -5,7 +5,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from webdriver_manager.chrome import ChromeDriverManager
 
-def fetch_all_pages_perfectly():
+def fetch_by_url_param():
     options = Options()
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--no-sandbox")
@@ -13,24 +13,29 @@ def fetch_all_pages_perfectly():
     
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
     all_results = []
-    current_page = 1
+    
+    # 날짜 설정 (오늘 ~ 60일 후)
+    start_dt = datetime.datetime.now().strftime('%Y-%m-%d')
+    end_dt = (datetime.datetime.now() + datetime.timedelta(days=60)).strftime('%Y-%m-%d')
 
     try:
-        print(f"[1/3] 의협 사이트 접속 (2개월치 일정 수집)")
-        driver.get("https://edu.kma.org/edu/schedule")
-        time.sleep(5)
-
-        # 검색 버튼 클릭
-        search_btn = driver.find_element(By.CSS_SELECTOR, "input[value='검색'].search")
-        driver.execute_script("arguments[0].click();", search_btn)
-        time.sleep(5)
-
-        print("[2/3] 모든 페이지 횡단 수집 시작...")
+        print(f"[1/3] URL 직접 공략 시작 ({start_dt} ~ {end_dt})")
         
-        while True:
-            # 1. 데이터 추출
+        for page_num in range(1, 11): # 최대 10페이지(150건)까지 확인
+            # 선생님이 발견하신 URL 구조를 그대로 활용합니다.
+            target_url = f"https://edu.kma.org/edu/schedule?pageNo={page_num}&start_dt={start_dt}&end_dt={end_dt}&sch_type=&sch_txt=&sch_es=&s_smallcode_Nm=&s_place=&siidx=&s_escidx=&s_scode="
+            
+            print(f"   - {page_num}페이지 접속 중...")
+            driver.get(target_url)
+            time.sleep(4) # 로딩 대기
+
+            # 데이터 추출
             titles = driver.find_elements(By.CSS_SELECTOR, "p.mb5[onclick^='$.viewer']")
             details = driver.find_elements(By.CSS_SELECTOR, "ul.cyberKindList")
+
+            if not titles:
+                print("   - 더 이상 가져올 데이터가 없습니다. 수집을 종료합니다.")
+                break
 
             for i in range(len(titles)):
                 try:
@@ -53,30 +58,7 @@ def fetch_all_pages_perfectly():
                     })
                 except: continue
 
-            print(f"   - {current_page}페이지 완료 (누적: {len(all_results)}건)")
-
-            # 2. '다음 페이지' 버튼 찾기 (숫자 기반)
-            try:
-                # 현재 페이지 다음 숫자(2, 3, 4...)를 가진 버튼을 찾습니다.
-                next_page_num = current_page + 1
-                # 텍스트가 숫자인 버튼을 찾거나 '>' 버튼을 찾습니다.
-                next_btn = driver.find_element(By.XPATH, f"//div[@class='paging']//a[text()='{next_page_num}']")
-                
-                driver.execute_script("arguments[0].click();", next_btn)
-                current_page += 1
-                time.sleep(4) 
-            except:
-                # 숫자가 없다면 진짜 '>' 버튼이 있는지 확인
-                try:
-                    next_arrow = driver.find_element(By.XPATH, "//div[@class='paging']//a[text()='>']")
-                    # 클릭 가능한지 확인 (마지막 페이지면 javascript:list(0) 등일 수 있음)
-                    if "list(0)" in next_arrow.get_attribute("href"):
-                        break
-                    driver.execute_script("arguments[0].click();", next_arrow)
-                    current_page += 1
-                    time.sleep(4)
-                except:
-                    break # 더 이상 페이지가 없음
+            print(f"   - {page_num}페이지 수집 완료 (현재 누적: {len(all_results)}건)")
 
         print(f"🎉 성공: 총 {len(all_results)}건의 데이터를 수집했습니다!")
 
@@ -89,10 +71,10 @@ def fetch_all_pages_perfectly():
         if len(all_results) > 0:
             print("[3/3] GitHub 업데이트 중...")
             subprocess.run("git add .", shell=True)
-            subprocess.run(f'git commit -m "Full 2-month update: {len(all_results)} items"', shell=True, capture_output=True)
+            subprocess.run(f'git commit -m "Full URL-based Update: {len(all_results)} items"', shell=True, capture_output=True)
             subprocess.run("git push origin main", shell=True)
             print("✨ 사이트 반영 성공!")
         driver.quit()
 
 if __name__ == "__main__":
-    fetch_all_pages_perfectly()
+    fetch_by_url_param()
