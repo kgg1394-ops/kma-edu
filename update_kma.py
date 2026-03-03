@@ -5,34 +5,26 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from webdriver_manager.chrome import ChromeDriverManager
 
-def fetch_2_months():
+def fetch_kma_2months():
     options = Options()
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-blink-features=AutomationControlled")
     
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
-    
     results = []
-    try:
-        # 1. 날짜 계산 (오늘 ~ 60일 후)
-        start_date = datetime.datetime.now().strftime('%Y-%m-%d')
-        end_date = (datetime.datetime.now() + datetime.timedelta(days=60)).strftime('%Y-%m-%d')
-        
-        print(f"[1/4] 기간 설정: {start_date} ~ {end_date}")
-        driver.get("https://edu.kma.org/edu/schedule")
-        time.sleep(3)
 
-        # 2. 날짜 입력 및 검색
-        # 의협 사이트의 날짜 입력 ID를 찾아 입력 (보통 sdate, edate 등)
-        driver.execute_script(f"document.getElementById('start_date').value = '{start_date}'")
-        driver.execute_script(f"document.getElementById('end_date').value = '{end_date}'")
-        
+    try:
+        print("[1/3] 의협 사이트 접속 및 검색 실행...")
+        driver.get("https://edu.kma.org/edu/schedule")
+        time.sleep(4)
+
+        # 날짜 입력 대신 바로 '검색' 버튼을 눌러 기본 2달치 리스트업
         search_btn = driver.find_element(By.CSS_SELECTOR, "input[value='검색'].search")
         driver.execute_script("arguments[0].click();", search_btn)
         time.sleep(5)
 
-        print("[2/4] 전 페이지 데이터 수집 중...")
+        print("[2/3] 전체 페이지 순회하며 수집 시작...")
         
         while True:
             # 현재 페이지 데이터 추출
@@ -42,8 +34,10 @@ def fetch_2_months():
             for i in range(len(titles)):
                 try:
                     title_text = titles[i].text.strip()
+                    # 평점 분리 (예: "교육명 평점 2")
                     title = title_text.split('평점')[0].strip()
                     credits = title_text.split('평점')[-1].strip() if '평점' in title_text else "0"
+                    
                     detail_text = details[i].text.strip()
                     lines = detail_text.split('\n')
                     
@@ -60,15 +54,26 @@ def fetch_2_months():
                     })
                 except: continue
 
-            # '다음 페이지' 버튼이 있는지 확인하고 클릭
+            # [핵심] 다음 페이지 버튼 (>) 클릭 로직
             try:
-                # 넥스트 버튼 (>) 찾기 - 사이트 구조에 따라 선택자가 다를 수 있음
-                next_btn = driver.find_element(By.XPATH, "//a[contains(text(), 'Next')]") 
-                if "disabled" in next_btn.get_attribute("class"): break
-                next_btn.click()
-                time.sleep(3)
+                # 다음 페이지 버튼의 '>' 기호를 가진 요소를 찾습니다.
+                next_btns = driver.find_elements(By.CSS_SELECTOR, ".paging a")
+                next_btn = None
+                for btn in next_btns:
+                    if ">" == btn.text.strip():
+                        next_btn = btn
+                        break
+                
+                if next_btn:
+                    # 다음 페이지가 활성화된 링크인지 확인
+                    if "javascript:void(0)" in next_btn.get_attribute("href"):
+                        break # 더 이상 갈 페이지가 없음
+                    next_btn.click()
+                    time.sleep(3)
+                else:
+                    break
             except:
-                break # 다음 페이지가 없으면 종료
+                break
 
         print(f"성공: 총 {len(results)}건의 데이터를 수집했습니다.")
 
@@ -79,13 +84,13 @@ def fetch_2_months():
             json.dump(results, f, ensure_ascii=False, indent=2)
         
         if len(results) > 0:
-            print("[4/4] GitHub 업데이트 진행 중...")
+            print("[3/3] GitHub 업데이트 중...")
             now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
             subprocess.run("git add .", shell=True)
-            subprocess.run(f'git commit -m "2-Month Update: {now}"', shell=True, capture_output=True)
+            subprocess.run(f'git commit -m "Full Update: {now}"', shell=True, capture_output=True)
             subprocess.run("git push origin main", shell=True)
-            print("Web Site Update Success!")
+            print("✨ 사이트 반영 성공!")
         driver.quit()
 
 if __name__ == "__main__":
-    fetch_2_months()
+    fetch_kma_2months()

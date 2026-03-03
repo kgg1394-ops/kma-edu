@@ -3,32 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KMA 연수교육 일정 대시보드</title>
+    <title>IM Specialist Dashboard</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        :root { --main-blue: #1a68b2; --bg-gray: #f4f7f9; }
-        body { font-family: 'Pretendard', sans-serif; background: var(--bg-gray); margin: 0; padding: 20px; color: #333; }
-        .container { max-width: 1000px; margin: 0 auto; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
-        h2 { color: var(--main-blue); border-left: 5px solid var(--main-blue); padding-left: 15px; margin-bottom: 25px; }
-        .info-bar { display: flex; justify-content: space-between; margin-bottom: 15px; font-size: 0.9em; color: #666; }
-        table { width: 100%; border-collapse: collapse; border-radius: 10px; overflow: hidden; }
-        th { background: var(--main-blue); color: white; padding: 15px; text-align: left; font-weight: 500; }
-        td { padding: 15px; border-bottom: 1px solid #eee; font-size: 0.95em; }
-        tr:last-child td { border-bottom: none; }
-        tr:hover { background: #f9fbff; transition: 0.2s; }
-        .badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 0.8em; font-weight: bold; }
-        .online { background: #e3f2fd; color: #1976d2; }
-        .credits { color: #e67e22; font-weight: bold; }
+        :root { --main-blue: #0d47a1; --med-gold: #ffb300; }
+        body { font-family: 'Pretendard', sans-serif; background: #f0f2f5; margin: 0; padding: 20px; }
+        .container { max-width: 1100px; margin: 0 auto; background: white; padding: 25px; border-radius: 12px; shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid var(--main-blue); padding-bottom: 15px; margin-bottom: 20px; }
+        h1 { color: var(--main-blue); margin: 0; font-size: 1.5rem; }
+        .search-box { padding: 10px; width: 300px; border: 1px solid #ddd; border-radius: 5px; }
+        .filter-btn { padding: 10px 15px; background: var(--main-blue); color: white; border: none; border-radius: 5px; cursor: pointer; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th { background: #e3f2fd; color: #333; padding: 12px; text-align: left; }
+        td { padding: 12px; border-bottom: 1px solid #eee; font-size: 0.95rem; }
+        .im-highlight { background-color: #fff9c4 !important; font-weight: bold; border-left: 4px solid var(--med-gold); }
+        .badge-online { background: #e8f5e9; color: #2e7d32; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h2><i class="fa-solid fa-user-md"></i> 의협 연수교육 일정 자동 알림</h2>
-        <div class="info-bar">
-            <span><i class="fa-solid fa-clock"></i> 업데이트: 2026-03-03</span>
-            <span>추출된 교육: <strong id="count">0</strong>건</span>
+        <div class="header">
+            <h1><i class="fa-solid fa-stethoscope"></i> 내과 전문의 연수교육 대시보드</h1>
+            <div>
+                <input type="text" id="searchInput" class="search-box" placeholder="교육명, 기관 검색...">
+                <button onclick="filterInternalMedicine()" class="filter-btn">내과 교육만 보기</button>
+            </div>
         </div>
-        <table id="edu-table">
+        
+        <table id="eduTable">
             <thead>
                 <tr>
                     <th>교육명</th>
@@ -37,28 +39,49 @@
                     <th>기관 및 장소</th>
                 </tr>
             </thead>
-            <tbody>
-                </tbody>
+            <tbody id="tableBody"></tbody>
         </table>
     </div>
 
     <script>
+        let allData = [];
+
         fetch('data.json')
             .then(res => res.json())
             .then(data => {
-                const tbody = document.querySelector('#edu-table tbody');
-                document.getElementById('count').innerText = data.length;
-                data.forEach(item => {
-                    const isOnline = item.title.includes('온라인') || item.location.includes('온라인');
-                    const row = `<tr>
-                        <td><strong>${item.title}</strong> ${isOnline ? '<span class="badge online">온라인</span>' : ''}</td>
-                        <td class="credits">${item.credits}점</td>
-                        <td>${item.date}</td>
-                        <td><small>${item.institution}</small><br><i class="fa-solid fa-location-dot" style="font-size:0.8em"></i> ${item.location}</td>
-                    </tr>`;
-                    tbody.innerHTML += row;
-                });
+                allData = data;
+                displayData(data);
             });
+
+        function displayData(data) {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+            data.forEach(item => {
+                const isIM = item.title.includes('내과') || item.institution.includes('내과');
+                const row = `<tr class="${isIM ? 'im-highlight' : ''}">
+                    <td>${item.title} ${item.is_online ? '<span class="badge-online">온라인</span>' : ''}</td>
+                    <td style="color:#d32f2f; font-weight:bold;">${item.credits}점</td>
+                    <td>${item.date}</td>
+                    <td><small>${item.institution}</small><br>${item.location}</td>
+                </tr>`;
+                tbody.innerHTML += row;
+            });
+        }
+
+        // 실시간 검색 기능
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            const term = e.target.value.toLowerCase();
+            const filtered = allData.filter(item => 
+                item.title.toLowerCase().includes(term) || item.institution.toLowerCase().includes(term)
+            );
+            displayData(filtered);
+        });
+
+        // 내과 필터 기능
+        function filterInternalMedicine() {
+            const filtered = allData.filter(item => item.title.includes('내과') || item.institution.includes('내과'));
+            displayData(filtered);
+        }
     </script>
 </body>
 </html>
