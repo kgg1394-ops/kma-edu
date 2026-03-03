@@ -3,85 +3,123 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IM Specialist Dashboard</title>
+    <title>GI Edu-Tracker (Paginated)</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        :root { --main-blue: #0d47a1; --med-gold: #ffb300; }
-        body { font-family: 'Pretendard', sans-serif; background: #f0f2f5; margin: 0; padding: 20px; }
-        .container { max-width: 1100px; margin: 0 auto; background: white; padding: 25px; border-radius: 12px; shadow: 0 10px 30px rgba(0,0,0,0.1); }
-        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid var(--main-blue); padding-bottom: 15px; margin-bottom: 20px; }
-        h1 { color: var(--main-blue); margin: 0; font-size: 1.5rem; }
-        .search-box { padding: 10px; width: 300px; border: 1px solid #ddd; border-radius: 5px; }
-        .filter-btn { padding: 10px 15px; background: var(--main-blue); color: white; border: none; border-radius: 5px; cursor: pointer; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th { background: #e3f2fd; color: #333; padding: 12px; text-align: left; }
-        td { padding: 12px; border-bottom: 1px solid #eee; font-size: 0.95rem; }
-        .im-highlight { background-color: #fff9c4 !important; font-weight: bold; border-left: 4px solid var(--med-gold); }
-        .badge-online { background: #e8f5e9; color: #2e7d32; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; }
+        :root { --gi-blue: #0277bd; --gi-accent: #ff7043; --bg-light: #f4f7f9; }
+        body { font-family: 'Pretendard', sans-serif; background: var(--bg-light); margin: 0; padding: 20px; color: #333; }
+        .container { max-width: 1000px; margin: 0 auto; background: white; padding: 25px; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+        
+        .header { border-bottom: 3px solid var(--gi-blue); padding-bottom: 15px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+        h1 { margin: 0; color: var(--gi-blue); font-size: 1.4rem; }
+        
+        /* 검색창 */
+        .search-area { margin-bottom: 20px; display: flex; gap: 10px; }
+        .search-input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 8px; }
+
+        /* 카드 스타일 리스트 */
+        .edu-item { border: 1px solid #eee; padding: 15px; border-radius: 10px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; transition: 0.2s; }
+        .edu-item:hover { border-color: var(--gi-blue); background: #fcfdfe; }
+        .gi-highlight { border-left: 5px solid var(--gi-accent); background: #fff9f7; }
+
+        /* 페이징 컨트롤 */
+        .pagination { display: flex; justify-content: center; align-items: center; gap: 20px; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; }
+        .page-btn { padding: 8px 16px; border: 1px solid var(--gi-blue); background: white; color: var(--gi-blue); border-radius: 5px; cursor: pointer; font-weight: bold; }
+        .page-btn:disabled { border-color: #ccc; color: #ccc; cursor: not-allowed; }
+        .page-btn:hover:not(:disabled) { background: var(--gi-blue); color: white; }
+        #page-info { font-weight: bold; color: #555; }
+
+        .score-badge { background: var(--gi-blue); color: white; padding: 4px 10px; border-radius: 6px; font-weight: bold; font-size: 0.9rem; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1><i class="fa-solid fa-stethoscope"></i> 내과 전문의 연수교육 대시보드</h1>
-            <div>
-                <input type="text" id="searchInput" class="search-box" placeholder="교육명, 기관 검색...">
-                <button onclick="filterInternalMedicine()" class="filter-btn">내과 교육만 보기</button>
-            </div>
+            <h1><i class="fa-solid fa- stethoscope"></i> 연수교육 일정 (15개씩 보기)</h1>
+            <span id="total-stat" style="font-size: 0.9rem; color: #666;"></span>
         </div>
-        
-        <table id="eduTable">
-            <thead>
-                <tr>
-                    <th>교육명</th>
-                    <th>평점</th>
-                    <th>날짜</th>
-                    <th>기관 및 장소</th>
-                </tr>
-            </thead>
-            <tbody id="tableBody"></tbody>
-        </table>
+
+        <div class="search-area">
+            <input type="text" id="searchInput" class="search-input" placeholder="교육명 또는 기관 검색...">
+        </div>
+
+        <div id="edu-list">
+            </div>
+
+        <div class="pagination">
+            <button id="prevBtn" class="page-btn" onclick="changePage(-1)">이전</button>
+            <span id="page-info">1 / 1</span>
+            <button id="nextBtn" class="page-btn" onclick="changePage(1)">다음</button>
+        </div>
     </div>
 
     <script>
         let allData = [];
+        let filteredData = [];
+        let currentPage = 1;
+        const itemsPerPage = 15;
+        const giKeywords = ['내과', '췌장', '담도', '간', '내시경', 'ERCP', '소화기'];
 
+        // 데이터 로드
         fetch('data.json')
             .then(res => res.json())
             .then(data => {
                 allData = data;
-                displayData(data);
+                filteredData = [...allData]; // 초기값은 전체 데이터
+                updateDisplay();
             });
 
-        function displayData(data) {
-            const tbody = document.getElementById('tableBody');
-            tbody.innerHTML = '';
-            data.forEach(item => {
-                const isIM = item.title.includes('내과') || item.institution.includes('내과');
-                const row = `<tr class="${isIM ? 'im-highlight' : ''}">
-                    <td>${item.title} ${item.is_online ? '<span class="badge-online">온라인</span>' : ''}</td>
-                    <td style="color:#d32f2f; font-weight:bold;">${item.credits}점</td>
-                    <td>${item.date}</td>
-                    <td><small>${item.institution}</small><br>${item.location}</td>
-                </tr>`;
-                tbody.innerHTML += row;
+        function updateDisplay() {
+            const list = document.getElementById('edu-list');
+            list.innerHTML = '';
+
+            // 페이징 계산
+            const start = (currentPage - 1) * itemsPerPage;
+            const end = start + itemsPerPage;
+            const pageData = filteredData.slice(start, end);
+
+            // 데이터 렌더링
+            pageData.forEach(item => {
+                const isGI = giKeywords.some(key => item.title.includes(key));
+                const itemHtml = `
+                    <div class="edu-item ${isGI ? 'gi-highlight' : ''}">
+                        <div>
+                            <div style="font-weight:bold; margin-bottom:5px;">${isGI ? '🔥 ' : ''}${item.title}</div>
+                            <div style="font-size:0.85rem; color:#777;">
+                                <i class="fa-regular fa-calendar"></i> ${item.date} | 
+                                <i class="fa-solid fa-location-dot"></i> ${item.location}
+                            </div>
+                        </div>
+                        <div class="score-badge">${item.credits}점</div>
+                    </div>
+                `;
+                list.innerHTML += itemHtml;
             });
+
+            // UI 업데이트
+            const totalPages = Math.ceil(filteredData.length / itemsPerPage) || 1;
+            document.getElementById('page-info').innerText = `${currentPage} / ${totalPages}`;
+            document.getElementById('prevBtn').disabled = currentPage === 1;
+            document.getElementById('nextBtn').disabled = currentPage === totalPages;
+            document.getElementById('total-stat').innerText = `총 ${filteredData.length}건 검색됨`;
         }
 
-        // 실시간 검색 기능
+        function changePage(direction) {
+            currentPage += direction;
+            updateDisplay();
+            window.scrollTo(0, 0); // 페이지 이동 시 상단으로 스크롤
+        }
+
+        // 검색 기능
         document.getElementById('searchInput').addEventListener('input', (e) => {
             const term = e.target.value.toLowerCase();
-            const filtered = allData.filter(item => 
-                item.title.toLowerCase().includes(term) || item.institution.toLowerCase().includes(term)
+            filteredData = allData.filter(item => 
+                item.title.toLowerCase().includes(term) || 
+                item.institution.toLowerCase().includes(term)
             );
-            displayData(filtered);
+            currentPage = 1; // 검색 시 1페이지로 리셋
+            updateDisplay();
         });
-
-        // 내과 필터 기능
-        function filterInternalMedicine() {
-            const filtered = allData.filter(item => item.title.includes('내과') || item.institution.includes('내과'));
-            displayData(filtered);
-        }
     </script>
 </body>
 </html>
